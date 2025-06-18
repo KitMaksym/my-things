@@ -1,0 +1,153 @@
+// ==UserScript==
+// @name         Discord Registration Autofill (JSON Logic)
+// @namespace    http://tampermonkey.net/
+// @version      3.0
+// @description  A fast and reliable script to autofill the Discord registration form, now perfectly replicating the user's provided JSON logic for Date of Birth selection.
+// @author       Your Name
+// @match        https://discord.com/register
+// @grant        none
+// @run-at       document-idle
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // --- Configuration ---
+    const config = {
+        emailPrefix: 'kitmaksim96',
+        displayName: 'overwrite',
+        usernamePrefix: 'overwrite_',
+        password: 'overwriterbywriter',
+    };
+
+    // --- Helper Functions ---
+
+    const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+    function generateRandomString(length) {
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    async function setReactInputValue(element, value) {
+        if (!element) return;
+        const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        const event = new Event('input', { bubbles: true });
+        element.focus();
+        valueSetter.call(element, value);
+        element.dispatchEvent(event);
+        element.blur();
+    }
+
+    /**
+     * Clicks an element found by a CSS selector.
+     * @param {string} selector - The CSS selector for the element to click.
+     */
+    async function clickElement(selector) {
+        const element = document.querySelector(selector);
+        if (element) {
+            element.click();
+        } else {
+            console.error(`Element not found for selector: ${selector}`);
+        }
+    }
+
+    /**
+     * The main function to perform the autofill.
+     */
+    async function autofillForm() {
+        try {
+            const button = document.getElementById('autofill-button');
+            if (button) button.style.display = 'none';
+
+            const randomEmailPart = generateRandomString(6);
+            const randomNumberPart = Math.floor(10000 + Math.random() * 90000);
+            const email = `${config.emailPrefix}+${randomEmailPart}@gmail.com`;
+            const username = `${config.usernamePrefix}${randomNumberPart}`;
+
+            // --- Step 1: Fill Text Fields ---
+            await setReactInputValue(document.querySelector('input[name="email"]'), email);
+            await setReactInputValue(document.querySelector('input[name="global_name"]'), config.displayName);
+            await setReactInputValue(document.querySelector('input[name="username"]'), username);
+            await setReactInputValue(document.querySelector('input[name="password"]'), config.password);
+            await sleep(200);
+
+            // --- Step 2: Set Date of Birth using exact JSON logic ---
+            console.log("Setting Date of Birth based on JSON...");
+
+            // Year
+            await clickElement('div[class*="year_"]');
+            await sleep(350);
+            await clickElement('#react-select-4-option-22'); // Clicks "2000"
+            await sleep(200);
+
+            // Month
+            await clickElement('div[class*="month_"]');
+            await sleep(350);
+            await clickElement('#react-select-3-option-2'); // Clicks "березень"
+            await sleep(200);
+
+            // Day
+            await clickElement('div[class*="day_"]');
+            await sleep(350);
+            await clickElement('#react-select-2-option-2'); // Clicks "3"
+            await sleep(200);
+
+            console.log("Date of Birth set.");
+
+            // --- Step 3: Check Terms of Service ---
+            const termsCheckbox = document.querySelector('input[type="checkbox"]');
+            if (termsCheckbox && !termsCheckbox.checked) {
+                termsCheckbox.click();
+            }
+
+        } catch (error) {
+            console.error('Autofill Script Error:', error);
+            alert('An error occurred during autofill. Check the console for details.');
+            const button = document.getElementById('autofill-button');
+            if (button) button.style.display = 'block';
+        }
+    }
+
+    function addAutofillButton() {
+        if (document.getElementById('autofill-button')) return;
+
+        const button = document.createElement('button');
+        button.id = 'autofill-button';
+        button.textContent = 'Auto Fill';
+        button.addEventListener('click', autofillForm);
+
+        Object.assign(button.style, {
+            position: 'fixed',
+            top: '15px',
+            right: '15px',
+            zIndex: '9999',
+            padding: '10px 15px',
+            backgroundColor: '#5865F2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        });
+        document.body.appendChild(button);
+    }
+
+    const observer = new MutationObserver((mutations, obs) => {
+        const form = document.querySelector('form[class*="authBox"]');
+        if (form) {
+            addAutofillButton();
+            obs.disconnect();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+})();
